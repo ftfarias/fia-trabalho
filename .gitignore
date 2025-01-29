@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.DS_Store
 
 # C extensions
 *.so
@@ -169,3 +170,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+.DS_Store
+
