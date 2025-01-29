@@ -1,4 +1,3 @@
-version: '3.7'
 ############################
 ##  DEFAULT
 ############################
@@ -43,54 +42,139 @@ services:
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_ACCESS_KEY: datalake
-      MINIO_SECRET_KEY: datalake
     volumes:
       - ./minio/data1:/data
 
+############################
+## INGESTAO
+############################
 
-  namenode:
-    image: fjardim/mds-namenode
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: airflow-webserver
     platform: linux/amd64
-    container_name: namenode
-    hostname: namenode
-    volumes:
-      - ./hadoop/hdfs/namenode:/hadoop/dfs/name
-      - ./hadoop/util:/util
-    env_file:
-      - ./hadoop/hadoop.env
+    hostname: airflow-webserver
+    command: webserver
     ports:
-      - "9870:9870"
-    deploy:
-      resources:
-        limits:
-          memory: 500m
-  
-  datanode:
-    image: fjardim/mds-datanode
-    platform: linux/amd64
-    container_name: datanode
-    hostname: datanode
-    volumes:
-      - ./hadoop/hdfs/datanode:/hadoop/dfs/data
-      - ./hadoop/util:/util
-    env_file:
-      - ./hadoop/hadoop.env
-    environment:
-      SERVICE_PRECONDITION: "namenode:9870"
+      - "58080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     depends_on:
-      - namenode
+      - redis
+      - db
+      - airflow-scheduler
+      - airflow-worker
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    platform: linux/amd64
+    hostname: airflow-scheduler
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      - redis
+      - db
+
+  airflow-worker:
+    <<: *airflow-common
+    container_name: airflow-worker
+    platform: linux/amd64
+    hostname: airflow-worker
+    command: celery worker
+    healthcheck:
+      # yamllint disable rule:line-length
+      test:
+        - "CMD-SHELL"
+        - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    environment:
+      <<: *airflow-common-env
+      # Required to handle warm shutdown of the celery workers properly
+      # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
+      DUMB_INIT_SETSID: "0"
+    depends_on:
+      - redis
+      - db
+
+  airflow-triggerer:
+    <<: *airflow-common
+    container_name: airflow-triggerer
+    platform: linux/amd64
+    hostname: airflow-triggerer
+    command: triggerer
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      - redis
+      - db
+
+  airflow-cli:
+    <<: *airflow-common
+    container_name: airflow-cli
+    platform: linux/amd64
+    hostname: airflow-cli
+    profiles:
+      - debug
+    environment:
+      <<: *airflow-common-env
+      CONNECTION_CHECK_MAX_COUNT: "0"
+    # Workaround for entrypoint issue. See: https://github.com/apache/airflow/issues/16252
+    command:
+      - bash
+      - -c
+      - airflow
+
+  airflow-flower:
+    <<: *airflow-common
+    container_name: airflow-flower
+    platform: linux/amd64
+    hostname: airflow-flower
+    command: celery flower
+    profiles:
+      - flower
     ports:
-      - "9864:9864"
-    deploy:
-      resources:
-        limits:
-          memory: 500m
+      - "5555:5555"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
 
 ############################
 ## DATABASE
 ############################
+
+  redis:
+    image: redis:latest
+    platform: linux/amd64
+    container_name: redis
+    hostname: redis
+    expose:
+      - 6379
+    ports:
+        - 6379:6379
+    volumes:
+      - ./util:/util    
 
   presto:
     platform: linux/amd64
@@ -114,16 +198,47 @@ services:
           memory: 2g
           #cpus: '0.2'
 
-  adminer:
-    image: adminer
+  db:
+    image: postgres:16
     platform: linux/amd64
-    container_name: adminer
-    hostname: adminer
+    container_name: db
+    hostname: db
+    environment:
+      POSTGRES_PASSWORD: admin
+      POSTGRES_USER: admin
+      POSTGRES_DB: admin
+    command: postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c max_connections=200 -c wal_level=logical
     ports:
-      - 28080:8080
+      - 15432:5432
+    volumes:
+      - ./postgres/volume:/var/lib/postgresql/data
+      - ./util:/util
+
+  # adminer:
+  #   image: adminer
+  #   platform: linux/amd64
+  #   container_name: adminer
+  #   hostname: adminer
+  #   ports:
+  #     - 28080:8080
       
- 
-   hive:
+  # mysql:
+  #   image: mysql
+  #   platform: linux/amd64
+  #   container_name: mysql
+  #   # NOTE: use of "mysql_native_password" is not recommended: https://dev.mysql.com/doc/refman/8.0/en/upgrading-from-previous-series.html#upgrade-caching-sha2-password
+  #   # (this is just an example, not intended to be a production configuration)
+  #   command: --default-authentication-plugin=mysql_native_password
+  #   restart: always
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: root
+  #   ports:
+  #     - 13306:3306
+  #   volumes:
+  #     - ./mysql/db:/var/lib/mysql
+
+
+  hive:
     hostname: hive
     #image: apache/hive:4.0.0-beta-1
     image: fjardim/mds-hive
@@ -166,12 +281,7 @@ services:
        - "9083:9083"
     depends_on:
         - db
-          
-    user: root
-    volumes:
-       - ./hive/meta:/opt/hive/data/warehouse 
-       - ./hive/conf:/hive_custom_conf
-       - ./util:/util
+
 
   clickhouse:
     image: clickhouse/clickhouse-server
@@ -216,6 +326,8 @@ services:
         #user user@datalab.com.br pass datalab
       volumes:
         - ./util:/util
+
+
  
 ##################################################
 ### ANALISE E PROCESSAMENTO
@@ -283,127 +395,31 @@ services:
         limits:
           memory: 1g
 
-  datahub-actions:
-    depends_on:
-      datahub-gms:
-        condition: service_healthy
-    environment:
-      - ACTIONS_CONFIG=${ACTIONS_CONFIG:-}
-      - ACTIONS_EXTRA_PACKAGES=${ACTIONS_EXTRA_PACKAGES:-}
-      - DATAHUB_GMS_HOST=datahub-gms
-      - DATAHUB_GMS_PORT=8080
-      - DATAHUB_GMS_PROTOCOL=http
-      - DATAHUB_SYSTEM_CLIENT_ID=__datahub_system
-      - DATAHUB_SYSTEM_CLIENT_SECRET=JohnSnowKnowsNothing
-      - KAFKA_BOOTSTRAP_SERVER=kafka-broker:9092
-      - KAFKA_PROPERTIES_SECURITY_PROTOCOL=PLAINTEXT
-      - METADATA_AUDIT_EVENT_NAME=MetadataAuditEvent_v4
-      - METADATA_CHANGE_LOG_VERSIONED_TOPIC_NAME=MetadataChangeLog_Versioned_v1
-      - SCHEMA_REGISTRY_URL=http://kafka-schema-registry:8081
-    hostname: actions
-    image: ${DATAHUB_ACTIONS_IMAGE:-acryldata/datahub-actions}:${ACTIONS_VERSION:-head}
-    container_name: datahub-actions
+##################################################
+### EDA
+#####
 
-  datahub-frontend-react:
-    depends_on:
-      datahub-gms:
-        condition: service_healthy
-    environment:
-      - DATAHUB_GMS_HOST=datahub-gms
-      - DATAHUB_GMS_PORT=8080
-      - DATAHUB_SECRET=YouKnowNothing
-      - DATAHUB_APP_VERSION=1.0
-      - DATAHUB_PLAY_MEM_BUFFER_SIZE=10MB
-      - JAVA_OPTS=-Xms512m -Xmx512m -Dhttp.port=9002 -Dconfig.file=datahub-frontend/conf/application.conf -Djava.security.auth.login.config=datahub-frontend/conf/jaas.conf -Dlogback.configurationFile=datahub-frontend/conf/logback.xml -Dlogback.debug=false -Dpidfile.path=/dev/null
-      - KAFKA_BOOTSTRAP_SERVER=kafka-broker:9092
-      - DATAHUB_TRACKING_TOPIC=DataHubUsageEvent_v1
-      - ELASTIC_CLIENT_HOST=elasticsearch
-      - ELASTIC_CLIENT_PORT=9200
-    hostname: datahub-frontend-react
-    image: ${DATAHUB_FRONTEND_IMAGE:-linkedin/datahub-frontend-react}:${DATAHUB_VERSION:-head}
+  keycloak:
+    image: quay.io/keycloak/keycloak:20.0.2
+    platform: linux/amd64
+    container_name: microcks-sso
     ports:
-      - 9002:9002
-    volumes:
-      - ./datahub/plugins:/etc/datahub/plugins
-    container_name: datahub-frontend
-
-  datahub-gms:
-    depends_on:
-      datahub-upgrade:
-        condition: service_completed_successfully
+      - "18080:8080"
     environment:
-      - DATAHUB_SERVER_TYPE=${DATAHUB_SERVER_TYPE:-quickstart}
-      - DATAHUB_TELEMETRY_ENABLED=${DATAHUB_TELEMETRY_ENABLED:-true}
-      - DATAHUB_UPGRADE_HISTORY_KAFKA_CONSUMER_GROUP_ID=generic-duhe-consumer-job-client-gms
-      - EBEAN_DATASOURCE_DRIVER=com.mysql.jdbc.Driver
-      - EBEAN_DATASOURCE_HOST=mysql:3306
-      - EBEAN_DATASOURCE_PASSWORD=root
-      - EBEAN_DATASOURCE_URL=jdbc:mysql://mysql:3306/datahub?verifyServerCertificate=false&useSSL=true&useUnicode=yes&characterEncoding=UTF-8
-      - EBEAN_DATASOURCE_USERNAME=root
-      - ELASTICSEARCH_HOST=elasticsearch
-      - ELASTICSEARCH_INDEX_BUILDER_MAPPINGS_REINDEX=true
-      - ELASTICSEARCH_INDEX_BUILDER_SETTINGS_REINDEX=true
-      - ELASTICSEARCH_PORT=9200
-      - ENTITY_REGISTRY_CONFIG_PATH=/datahub/datahub-gms/resources/entity-registry.yml
-      - ENTITY_SERVICE_ENABLE_RETENTION=true
-      - ES_BULK_REFRESH_POLICY=WAIT_UNTIL
-      - GRAPH_SERVICE_DIFF_MODE_ENABLED=true
-      - GRAPH_SERVICE_IMPL=elasticsearch
-      - JAVA_OPTS=-Xms1g -Xmx1g
-      - KAFKA_BOOTSTRAP_SERVER=kafka-broker:9092
-      - KAFKA_CONSUMER_STOP_ON_DESERIALIZATION_ERROR=${KAFKA_CONSUMER_STOP_ON_DESERIALIZATION_ERROR:-true}
-      - KAFKA_SCHEMAREGISTRY_URL=http://kafka-schema-registry:8081
-      - MAE_CONSUMER_ENABLED=true
-      - MCE_CONSUMER_ENABLED=true
-      - PE_CONSUMER_ENABLED=true
-      - UI_INGESTION_ENABLED=true
-    healthcheck:
-      interval: 1s
-      retries: 3
-      start_period: 90s
-      test: curl -sS --fail http://datahub-gms:${DATAHUB_GMS_PORT:-8080}/health
-      timeout: 5s
-    hostname: datahub-gms
-    image: ${DATAHUB_GMS_IMAGE:-linkedin/datahub-gms}:${DATAHUB_VERSION:-head}
-    ports:
-    - 8080:8080
+      KEYCLOAK_ADMIN: "admin"
+      KEYCLOAK_ADMIN_PASSWORD: "admin"
+      KC_HOSTNAME_ADMIN_URL: "http://localhost:18080"
+      KC_HOSTNAME_URL: "http://localhost:18080"
     volumes:
-    - ./datahub/plugins:/etc/datahub/plugins
-    container_name: datahub-gms
-
-  datahub-upgrade:
+      - "./keycloak/microcks-realm-sample.json:/opt/keycloak/data/import/microcks-realm.json"
     command:
-    - -u
-    - SystemUpdate
-    depends_on:
-      elasticsearch-setup:
-        condition: service_completed_successfully
-      kafka-setup:
-        condition: service_completed_successfully
-      mysql-setup:
-        condition: service_completed_successfully
-    environment:
-    - EBEAN_DATASOURCE_USERNAME=root
-    - EBEAN_DATASOURCE_PASSWORD=root
-    - EBEAN_DATASOURCE_HOST=mysql:3306
-    - EBEAN_DATASOURCE_URL=jdbc:mysql://mysql:3306/datahub?verifyServerCertificate=false&useSSL=true&useUnicode=yes&characterEncoding=UTF-8
-    - EBEAN_DATASOURCE_DRIVER=com.mysql.jdbc.Driver
-    - KAFKA_BOOTSTRAP_SERVER=kafka-broker:9092
-    - KAFKA_SCHEMAREGISTRY_URL=http://kafka-schema-registry:8081
-    - ELASTICSEARCH_HOST=elasticsearch
-    - ELASTICSEARCH_PORT=9200
-    - ELASTICSEARCH_INDEX_BUILDER_MAPPINGS_REINDEX=true
-    - ELASTICSEARCH_INDEX_BUILDER_SETTINGS_REINDEX=true
-    - ELASTICSEARCH_BUILD_INDICES_CLONE_INDICES=false
-    - GRAPH_SERVICE_IMPL=elasticsearch
-    - DATAHUB_GMS_HOST=datahub-gms
-    - DATAHUB_GMS_PORT=8080
-    - ENTITY_REGISTRY_CONFIG_PATH=/datahub/datahub-gms/resources/entity-registry.yml
-    - BACKFILL_BROWSE_PATHS_V2=true
-    - REPROCESS_DEFAULT_BROWSE_PATHS_V2=false
-    hostname: datahub-upgrade
-    image: ${DATAHUB_UPGRADE_IMAGE:-acryldata/datahub-upgrade}:${DATAHUB_VERSION:-head}
-    container_name: datahub-upgrade
+      - start-dev --import-realm
+
+  postman:
+    image: quay.io/microcks/microcks-postman-runtime:latest
+    platform: linux/amd64
+    container_name: microcks-postman-runtime
+
 
   pgadmin:
     container_name: pgadmin_container
@@ -419,6 +435,8 @@ services:
 
 #############################
 ## GENERAL
+
+  
 
 configs:
   flags:
