@@ -24,13 +24,21 @@ A arquitetura consiste basicamente em:
 
 ### Acesso à API OlhoVivo
 
+
 https://www.sptrans.com.br/desenvolvedores/
 
 Foi necessário fazer o cadastro para geração de token de acesso em: https://www.sptrans.com.br/desenvolvedores/login-desenvolvedores/
 
 ### Setup do Docker Composer
 
+No diretório docker/
 
+```
+docker compose up
+```
+
+PGAdmin: http://localhost:5433/browser/
+Airflow: http://localhost:8080/home
 
 ### Setup do Ambiente Jupyter Notebook
 
