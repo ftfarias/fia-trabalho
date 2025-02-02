@@ -295,6 +295,7 @@ services:
         #user user@datalab.com.br pass datalab
       volumes:
         - ./util:/util
+        - ./plugins:/app/plugins
  
 ##################################################
 ### ANALISE E PROCESSAMENTO
@@ -308,7 +309,7 @@ services:
       - /bin/sh
       - -c
       - |
-        /usr/local/spark/sbin/start-master.sh
+        /usr/local/spark/sbin/start-master.sh 
         start-notebook.sh --NotebookApp.token=''
     ports:
       - 8889:8888
@@ -336,11 +337,9 @@ services:
       - /bin/sh
       - -c
       - |
-        /usr/local/spark/sbin/start-worker.sh spark-master:7077
+        /usr/local/spark/sbin/start-worker.sh spark-master:7077 $SPARK_HOME/bin/spark-sql
         start-notebook.sh --NotebookApp.token='' 
     #command: /usr/local/spark/sbin/start-worker.sh jupyter-spark:7077
-    #environment:
-    #  PYSPARK_SUBMIT_ARGS: "--packages io.delta:delta-core_2.12:2.2.0,org.apache.hadoop:hadoop-aws:3.3.1,com.amazonaws:aws-java-sdk-bundle:1.12.392"
     env_file:
       - ./spark/env/jupyter.env
     ports:
@@ -354,6 +353,7 @@ services:
       - ./util:/util
       - ./spark/work:/home/user 
     environment:
+      PYSPARK_SUBMIT_ARGS: "--jars /util/clickhouse-spark-runtime-3.3_2.13-0.8.1.jar,/util/clickhouse-jdbc-0.3.2-all.jar"
       SPARK_MASTER: spark-master
     depends_on:
         - spark-master
@@ -366,21 +366,21 @@ services:
 ### EDA
 #####
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:20.0.2
-    platform: linux/amd64
-    container_name: microcks-sso
-    ports:
-      - "18080:8080"
-    environment:
-      KEYCLOAK_ADMIN: "admin"
-      KEYCLOAK_ADMIN_PASSWORD: "admin"
-      KC_HOSTNAME_ADMIN_URL: "http://localhost:18080"
-      KC_HOSTNAME_URL: "http://localhost:18080"
-    volumes:
-      - "./keycloak/microcks-realm-sample.json:/opt/keycloak/data/import/microcks-realm.json"
-    command:
-      - start-dev --import-realm
+  # keycloak:
+  #   image: quay.io/keycloak/keycloak:20.0.2
+  #   platform: linux/amd64
+  #   container_name: microcks-sso
+  #   ports:
+  #     - "18080:8080"
+  #   environment:
+  #     KEYCLOAK_ADMIN: "admin"
+  #     KEYCLOAK_ADMIN_PASSWORD: "admin"
+  #     KC_HOSTNAME_ADMIN_URL: "http://localhost:18080"
+  #     KC_HOSTNAME_URL: "http://localhost:18080"
+  #   volumes:
+  #     - "./keycloak/microcks-realm-sample.json:/opt/keycloak/data/import/microcks-realm.json"
+  #   command:
+  #     - start-dev --import-realm
 
   pgadmin:
     container_name: pgadmin_container
