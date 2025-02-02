@@ -38,9 +38,6 @@ No diretório docker/
 docker compose up
 ```
 
-PGAdmin: http://localhost:5433/browser/
-Airflow: http://localhost:8080/home
-
 ### Subir os serviços com Docker Compose
 
 ```
