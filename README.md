@@ -36,6 +36,7 @@ No diretório docker/
 
 ```
 docker compose up
+.\script.bat
 ```
 
 ### Subir os serviços com Docker Compose
@@ -80,6 +81,15 @@ Foi usado no projeto:
 - Anaconda: 
 - Python: Python 3.x
 - Jupyter Notebook (conda install jupyter notebook)
+
+### Setup pgAdmin
+
+* PGAdmin: ['http://localhost:5433/browser/'] (http://localhost:5433/browser/)
+Register > Server
+General > Name: db
+Connection > Hostname: db
+Connection > Pport 5432
+Connection > USername: admin
 
 ### Setup do Minio
 
