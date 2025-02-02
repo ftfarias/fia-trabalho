@@ -1,0 +1,23 @@
+from pyspark.sql import SparkSession
+
+
+# Create a SparkSession
+spark = SparkSession.builder.getOrCreate()
+# Get the SparkContext from the SparkSession
+sc = spark.sparkContext
+# Set the MinIO access key, secret key, endpoint, and other configurations
+sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", "NzUmXT2E7YJIY3m9yFBz")
+sc._jsc.hadoopConfiguration().set("fs.s3a.secret.key", "5SCMGEtt52EziOcTUi9dyMt5dfFE2MBaK1ZaskPX")
+sc._jsc.hadoopConfiguration().set("fs.s3a.endpoint", "http://minio:9000")
+sc._jsc.hadoopConfiguration().set("fs.s3a.path.style.access", "true")
+sc._jsc.hadoopConfiguration().set("fs.s3a.connection.ssl.enabled", "false")
+sc._jsc.hadoopConfiguration().set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+sc._jsc.hadoopConfiguration().set("fs.s3a.connection.ssl.enabled", "false")
+# Read a JSON file from an MinIO bucket using the access key, secret key, 
+# and endpoint configured above
+df = spark.read.option("header", "true") \
+    .csv(f"s3a://raw/stops.txt")
+# show data
+df.show()
+
+
