@@ -1,6 +1,7 @@
-############################
+##################################################
 ##  DEFAULT
-############################
+##################################################
+
 x-airflow-common:
   &airflow-common
   # In order to add custom dependencies or upgrade provider packages you can use your extended image.
@@ -39,11 +40,12 @@ x-airflow-common:
     - redis
     - db
 
-  
 services:
-############################
-##  DATA LAKE
-############################
+
+##################################################
+##  DATA LAKE - MINIO
+##################################################
+
   minio:
     image: minio/minio:latest
     platform: linux/amd64
@@ -61,10 +63,9 @@ services:
       - ./minio/data1:/data
 
 
-############################
-## INGESTAO
-############################
-
+##################################################
+## INGESTAO - AIRFLOW
+##################################################
 
   airflow-webserver:
     <<: *airflow-common
@@ -199,10 +200,9 @@ services:
   # or by explicitly targeted on the command line e.g. docker-compose up flower.
   # See: https://docs.docker.com/compose/profiles/
 
-
-############################
+##################################################
 ## DATABASE
-############################
+##################################################
 
   redis:
     image: redis:latest
@@ -270,9 +270,9 @@ services:
       #- ./clickhouse/config/config.xml:/etc/clickhouse-server/config.d/storage.xml
       - ./util:/util
 
-############################
-## VISUALIZACAO
-############################
+##################################################
+## DATAVIZ - METABASE
+##################################################
 
   metabase:
       image: metabase/metabase:latest
@@ -297,8 +297,9 @@ services:
         - ./util:/util
  
 ##################################################
-### ANALISE E PROCESSAMENTO
+### ANALISE E PROCESSAMENTO - SPARK
 ##################################################
+
   spark-master:
     image: fjardim/mds-spark
     platform: linux/amd64
@@ -364,7 +365,7 @@ services:
 
 ##################################################
 ### EDA
-#####
+##################################################
 
   keycloak:
     image: quay.io/keycloak/keycloak:20.0.2
@@ -394,9 +395,10 @@ services:
     depends_on:
       - db  
 
-#############################
+##################################################
 ## GENERAL
-  
+##################################################
+
 configs:
   flags:
     file: ./airbyte/flags.yml
@@ -404,5 +406,3 @@ configs:
 networks:
   datalab:
     driver: bridge
-
-

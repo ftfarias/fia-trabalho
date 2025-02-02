@@ -41,6 +41,41 @@ docker compose up
 PGAdmin: http://localhost:5433/browser/
 Airflow: http://localhost:8080/home
 
+### Subir os serviços com Docker Compose
+
+```
+$ docker compose up -d
+```
+
+### Resultado esperado
+
+```
+resultado 
+
+```
+
+### Para listar os containers e portas:
+
+```
+$ docker ps
+```
+
+Depois que os serviços subirem, acessá-los nos links abaixo: (revisar)
+
+* Airflow: [`http://localhost:8080`](http://localhost:8080)
+* PGAdmin: [`http://localhost:9600`](http://localhost:9600)
+* Minio: [`http://localhost:9051`](http://localhost:9051)
+* Metabase: [`http://localhost:3000`](http://localhost:3000)
+* Spark: [`http://localhost:8889`](http://localhost:8889)
+* ClickHouse: [`http://localhost:18123`](http://localhost:18123)
+
+
+Para parar os serviços
+
+```
+$ docker compose down
+```
+
 ### Setup do Ambiente Jupyter Notebook
 
 Foi usado no projeto:
@@ -48,7 +83,6 @@ Foi usado no projeto:
 - Anaconda: 
 - Python: Python 3.x
 - Jupyter Notebook (conda install jupyter notebook)
-
 
 ### Setup do Minio
 
