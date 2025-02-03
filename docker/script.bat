@@ -6,3 +6,4 @@ mkdir .\postgres\volume\pg_snapshots
 mkdir .\postgres\volume\pg_stat_tmp
 mkdir .\postgres\volume\pg_logical\mappings
 mkdir .\postgres\volume\pg_logical\snapshots
+mkdir .\postgres\volume\pg_replslot
