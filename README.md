@@ -32,9 +32,17 @@ Foi necessário fazer o cadastro para geração de token de acesso em: https://w
 
 ### Setup do Docker Composer
 
+Criar diretório para clonar diretório GIT
+```
+git clone git@github.com:ftfarias/fia-trabalho.git
+```
+
 No diretório docker/
 
 ```
+cd fia-trabalho
+cd docker
+.\script.bat
 docker compose up
 ```
 
@@ -43,6 +51,21 @@ docker compose up
 ```
 $ docker compose up -d
 ```
+
+### Setup pgAdmin db
+
+* PGAdmin: [`http://localhost:5433/browser/`](http://localhost:5433/browser/)
+Login
+Email Address/ Usename: lab-pgadmin4@pgadmin.org
+Password: admin
+Add New Server
+Register > Server
+General > Name: db
+Connection > Hostname: db
+Connection > Username: admin
+Connection > Password: admin
+Save password: True
+Save
 
 ### Resultado esperado
 
