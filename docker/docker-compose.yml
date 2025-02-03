@@ -225,7 +225,7 @@ services:
       POSTGRES_PASSWORD: admin
       POSTGRES_USER: admin
       POSTGRES_DB: admin
-    command: postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c max_connections=200 -c wal_level=logical
+    command: postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c max_connections=200 -c wal_level=logical & && psql -U admin -d admin -c "CREATE DATABASE metabase" |  psql -U admin -d admin -c "CREATE DATABASE airflow" |  psql -U admin -d admin -c "CREATE DATABASE metastore"
     ports:
       - 15432:5432
     volumes:
