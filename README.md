@@ -17,7 +17,7 @@ Para isso, fizemos uma exploração incial dos dados coletados e montamos uma ar
 A arquitetura consiste basicamente em:
 
 * Docker Composer
-* Jupyter Notebook
+* Jupyter Notebook (spark)
 * Minio
 * ClickHouse
 * Metabase
@@ -30,34 +30,60 @@ https://www.sptrans.com.br/desenvolvedores/
 
 Foi necessário fazer o cadastro para geração de token de acesso em: https://www.sptrans.com.br/desenvolvedores/login-desenvolvedores/
 
-### Setup do Docker Composer
 
-Criar diretório para clonar diretório GIT
+Os passos principais são:
+
+### 1. Setup do Git
+
+Criar diretório para clonar repositório git
+
 ```
 git clone git@github.com:ftfarias/fia-trabalho.git
 ```
 
-No diretório docker/
+### 2. Setup do Docker Composer
+
+Os serviços necessários estão configurados no arquivo `docker-compose.yml`, que pode ser encontrado no diretório `docker/`.
+
+Porém, antes de subir os serviços, é necessário fazer algumas configurações iniciais:
+
+1. criação dos diretórios do banco de dados (Postgres)
+
+No diretório `docker/`:
+
+Se estiver usando Windows:
 
 ```
-cd fia-trabalho
-cd docker
 .\script.bat
-docker compose up
 ```
 
-### Subir os serviços com Docker Compose
+Se estiver usando MacOS:
 
 ```
-$ docker compose up -d
+.\script_mac.bat
 ```
 
-### Setup pgAdmin db
+2. Setup pgAdmin db
 
-* PGAdmin: [`http://localhost:5433/browser/`](http://localhost:5433/browser/)
-Login
-Email Address/ Usename: lab-pgadmin4@pgadmin.org
+Subir o serviço `pgadmin` com Docker Compose:
+
+```
+docker compose up pgadmin
+````
+
+Acessar o serviço em:
+
+* PGAdmin: [`http://localhost:5433`](http://localhost:5433/)
+
+Credenciais:
+
+```
+Login: lab-pgadmin4@pgadmin.org
 Password: admin
+````
+Passos:
+
+```
 Add New Server
 Register > Server
 General > Name: db
@@ -66,11 +92,22 @@ Connection > Username: admin
 Connection > Password: admin
 Save password: True
 Save
+```
+
+Criar os databases: 
+
+![arquitetura](./figuras/databases.png "Databases")
+
+#### Subir todos os serviços com Docker Compose
+
+```
+$ docker compose up -d
+```
 
 ### Resultado esperado
 
 ```
-resultado 
+PostgreSQL init process complete; ready for start up.
 
 ```
 
@@ -83,10 +120,10 @@ $ docker ps
 Depois que os serviços subirem, acessá-los nos links abaixo: (revisar)
 
 * Airflow: [`http://localhost:8080`](http://localhost:8080)
-* PGAdmin: [`http://localhost:9600`](http://localhost:9600)
+* Spark (Jupyter Notebook): [`http://localhost:8889`](http://localhost:8889)
 * Minio: [`http://localhost:9051`](http://localhost:9051)
 * Metabase: [`http://localhost:3000`](http://localhost:3000)
-* Spark: [`http://localhost:8889`](http://localhost:8889)
+* PGAdmin: [`http://localhost:5433`](http://localhost:5433/)
 * ClickHouse: [`http://localhost:18123`](http://localhost:18123)
 
 
@@ -98,18 +135,27 @@ $ docker compose down
 
 ### Setup do Ambiente Jupyter Notebook
 
+*
+
 Foi usado no projeto:
 
 - Anaconda: 
 - Python: Python 3.x
 - Jupyter Notebook (conda install jupyter notebook)
 
+
+
 ### Setup do Minio
 
+Subir os csv do diretorio gtfs para o bucket raw
 
 ### Setup de ClickHouse
+
+
 
 
 ### Setup do Metabase
 
 
+
+### 
