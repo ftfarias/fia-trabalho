@@ -7,3 +7,5 @@ mkdir .\postgres\volume\pg_stat_tmp
 mkdir .\postgres\volume\pg_logical\mappings
 mkdir .\postgres\volume\pg_logical\snapshots
 mkdir .\postgres\volume\pg_replslot
+mkdir .\postgres\volume\pg_wal
+mkdir .\postgres\volume\pg_wal\archive_status
